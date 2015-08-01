@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,minimum-scale=1">
+    <style type="text/css">
+        * {
+        -webkit-box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        box-sizing: border-box;
+        }
+
+        html {
+        -ms-touch-action: none;
+        }
+
+        body, ul, li {
+        padding: 0;
+        margin: 0;
+        border: 0;
+        }
+
+        body {
+        font-size: 12px;
+        font-family: "Helvetica Neue", Helvetica, "Segoe UI", Arial, freesans, sans-serif;
+        overflow: hidden; /* this is important to prevent the whole page to bounce */
+        background-color:black;
+        color:#eee;
+        }
+
+        #wrapper {
+        position: absolute;
+        z-index: 1;
+        top: 0px;
+        bottom: 0px;
+        left: 9999px; /* Not a must - can be 0 - but it makes the appearance of the content a bit nicer */
+        width: 100%;
+        overflow: hidden;
+        }
+
+        #scroller {
+        position: absolute;
+        z-index: 1;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        width: 100%;
+        -webkit-transform: translateZ(0);
+        -moz-transform: translateZ(0);
+        -ms-transform: translateZ(0);
+        -o-transform: translateZ(0);
+        transform: translateZ(0);
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-text-size-adjust: none;
+        -moz-text-size-adjust: none;
+        -ms-text-size-adjust: none;
+        -o-text-size-adjust: none;
+        text-size-adjust: none;
+        }
+
+        #scroller ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        text-align: left;
+        }
+
+        #scroller li {
+        padding: 0px 0px;
+        #height: 80px;
+        line-height: 20px;
+        border-top: 1px solid #1142aa;
+        font-size: 14px;
+        }
+
+        .pullDownLabel, .pullUpLabel {
+        color: #999
+        }
+
+        .pullDown, .pullUp {
+        height: 40px;
+        line-height: 40px;
+        font-weight: bold;
+        font-size: 0.8em;
+        color: #888
+        }
+        .pullUp{
+        border-top: 1px solid #1142aa;
+        }
+    </style>
+
+    <script type="text/javascript" src="lib/jquery-2.1.4.min.js"></script>
+    <script type="text/javascript" src="lib/iscroll-probe.js"></script>
+
+    <script type="text/javascript">
+
+        var topItemId=15;
+        var bottomItemId=topItemId;
+        var myScroll=null;
+        document.addEventListener('touchmove', function (e) {
+            e.preventDefault();
+        }, false);
+        var check = function(){
+            var count = window.backend.countArticle();
+            if(count<15){
+                setTimeout(check,1000);
+            }else{
+                $('#loading_div').remove();
+                topItemId = window.backend.getPublicCurrentItemId();
+                load('current');
+            }
+        }
+        var animateLoading = function(){
+            $('#loading_div').animate({
+                    opacity: 1-Math.random()/2    ,
+                    fontSize:(1+Math.random()/2)+"em"
+            },1000,animateLoading);
+        }
+        var main = function(){
+            if(window.backend){
+                animateLoading();
+                check();
+            }else{
+                document.body.innerHTML="Error";
+            }
+        }
+
+
+        var makeli=function(item){
+            return '<li id="c-'+item.id+'">'
+                        + '<table style="width:100%;padding:10px;10px;"><tr><td>'
+                        + item.title
+                        + '</td></tr><tr><td style="text-align:right;"><span style="font-size:0.7em;color:#ccc;">'
+                        + 'rank:'
+                        + item.rank
+                        + '&nbsp;&nbsp;'
+                        + item.author
+                        + '&nbsp;&nbsp;'
+                        + item.upTime
+                        + '</span></td></tr>'
+                        +'</table></li>';
+        }
+        var load = function(action){
+            if(action=='current'){
+                var items = JSON.parse(window.backend.listPublicBeforeInclude(topItemId,15));
+                for( var i =0;i<items.length;i++){
+                    var item = items[i];
+                    if(i==0){
+                        topItemId=item.id;
+                        window.backend.setPublicCurrentItemId(topItemId);
+                    }
+                    if(i==items.length-1){
+                        bottomItemId = item.id;
+                    }
+                    $(makeli(item))
+                        .appendTo($('#wrapper > #scroller > ul'))
+                        .click(function(){
+                            window.backend.openDetail(parseInt($(this).attr("id").substring(2)));
+                        });
+                }
+            }else if(action=='pre'){
+                var old = myScroll.maxScrollY;
+                var items = JSON.parse(window.backend.listPublicAfter(topItemId,15));
+                for( var i =items.length-1;i>-1;i--){
+                    var item = items[i];
+                    if(i==0){
+                        topItemId=item.id;
+                        window.backend.setPublicCurrentItemId(topItemId);
+                    }
+                    $(makeli(item))
+                        .prependTo($('#wrapper > #scroller > ul'))
+                        .click(function(){
+                            window.backend.openDetail(parseInt($(this).attr("id").substring(2)));
+                        });
+                }
+
+                myScroll.maxScrollY = document.querySelector('#wrapper').offsetHeight-document.querySelector('#wrapper ul').offsetHeight-80;
+                myScroll.scrollTo(0,myScroll.maxScrollY-old,0)
+            }else if(action=='suffix'){
+
+                var items = JSON.parse(window.backend.listPublicBefore(bottomItemId,15));
+                for( var i =0;i<items.length;i++){
+                    var item = items[i];
+                    if(i==items.length-1){
+                        bottomItemId = item.id;
+                    }
+                     $(makeli(item))
+                        .appendTo($('#wrapper > #scroller > ul'))
+                        .click(function(){
+                            window.backend.openDetail(parseInt($(this).attr("id").substring(2)));
+                        });
+                }
+                myScroll.maxScrollY = document.querySelector('#wrapper').offsetHeight-document.querySelector('#wrapper ul').offsetHeight-80;
+            }
+
+            if(action=='current'){
+                render();
+            }
+        }
+
+        function render() {
+            myScroll = new IScroll('#wrapper', {
+                probeType: 1,
+                tap: true,
+                click: false,
+                preventDefaultException: {tagName: /.*/},
+                mouseWheel: true,
+                scrollbars: true,
+                fadeScrollbars: true,
+                interactiveScrollbars: false,
+                keyBindings: false,
+                deceleration: 0.0002,
+                startY: (parseInt(document.querySelector('#wrapper .pullDown').offsetHeight) * (-1))
+            });
+
+            myScroll.on('scrollStart', function () {
+            });
+
+            myScroll.on('scroll', function () {
+                if(myScroll.y > 0){
+                    document.querySelector('#wrapper .pullDownLabel').innerHTML = '松开加载更新...';
+                }else{
+                    document.querySelector('#wrapper .pullDownLabel').innerHTML = '下拉加载更新...';
+                }
+                if(document.querySelector('#wrapper').offsetHeight-document.querySelector('#wrapper ul').offsetHeight-myScroll.y >80){
+                    document.querySelector('#wrapper .pullUpLabel').innerHTML = '松开加载历史...';
+                }else{
+                    document.querySelector('#wrapper .pullUpLabel').innerHTML = '上拉加载历史...';
+                }
+            });
+            myScroll.on('scrollEnd', function () {
+
+                if(document.querySelector('#wrapper .pullDownLabel').innerHTML == '松开加载更新...'){
+                    load('pre');
+                }
+                if(myScroll.y > document.querySelector('#wrapper .pullDown').offsetHeight * (-1)){
+                    document.querySelector('#wrapper .pullDownLabel').innerHTML = '下拉加载更新...';
+                    if(myScroll.y!=0){
+                        myScroll.scrollTo(0,document.querySelector('#wrapper .pullDown').offsetHeight * (-1),1000)
+                    }
+
+                }
+
+                if(document.querySelector('#wrapper .pullUpLabel').innerHTML == '松开加载历史...'){
+                    load('suffix');
+                    document.querySelector('#wrapper .pullUpLabel').innerHTML = '上拉加载历史...';
+                }
+
+            });
+
+            // In order to prevent seeing the "pull down to refresh" before the iScoll is trigger
+            // - the wrapper is located at left:-9999px and returned to left:0 after the iScoll is initiated
+            setTimeout(function () {
+                $('#wrapper').css({left: 0});
+            }, 100);
+        }
+
+    </script>
+</head>
+<body onload="main()">
+<div id="loading_div" style="width:100%;height:100%;position:absolute;">
+    <table style="height:100%;width:100%">
+        <tr><td style="text-align:center;"><span id="loading" class="">请连接wifi，等待1分钟，加载离线数据中...</span></td></tr>
+    </table>
+</div>
+<div id="wrapper">
+    <div id="scroller">
+        <div class="pullDown">
+            <span class="pullDownLabel">下拉加载更新...</span>
+        </div>
+        <ul></ul>
+        <div class="pullUp">
+            <span class="pullUpLabel">上拉加载历史...</span>
+        </div>
+    </div>
+</div>
+</body>
+</html>
